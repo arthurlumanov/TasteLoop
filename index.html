@@ -77,6 +77,39 @@
             .entrance-tagline { font-size: 0.7rem; }
         }
 
+        #suggestions-list {
+            position: absolute;
+            top: 100%; /* Position right below the input */
+            left: 0;
+            right: 0;
+            z-index: 50; /* Above content, below nav */
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            list-style: none;
+            padding: 10px 0;
+            margin-top: 5px;
+            box-shadow: var(--shadow);
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            display: none; /* Hidden by default */
+        }
+
+        #suggestions-list li {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--primary);
+            transition: background-color 0.2s;
+        }
+        
+        #suggestions-list li:hover {
+            background-color: var(--bg-light);
+        }
+        
+        #suggestions-list li strong {
+            font-weight: 700;
+        }
         /* --- NAVBAR --- */
         nav {
             position: sticky; top: 0; z-index: 100;
@@ -202,7 +235,7 @@
         <div class="search-container">
             <i class="fa fa-search search-icon"></i>
             <input type="text" class="search-input" placeholder="Lagi pengen makan apa? (cth: Seblak, Kopi...)">
-        </div>
+            <ul id="suggestions-list"></ul> </div>
     </section>
 
     <div class="category-scroll">
@@ -710,14 +743,79 @@
         });
 
         // 4. FUNGSI SEARCH (NAMA & KATEGORI)
-        document.querySelector('.search-input').addEventListener('keyup', function(e) {
-            const term = e.target.value.toLowerCase();
-            const filteredData = database.filter(item => {
-                return item.name.toLowerCase().includes(term) || 
-                       item.category.toLowerCase().includes(term);
-            });
-            renderContent(filteredData);
+        // Get necessary elements for search and suggestion
+    const searchInput = document.querySelector('.search-input');
+    const suggestionsList = document.getElementById('suggestions-list');
+
+    // 4. FUNGSI SEARCH (NAMA, KATEGORI, & LOKASI) + SEARCH SUGGESTION
+    searchInput.addEventListener('input', function(e) {
+        const term = e.target.value.trim().toLowerCase();
+        
+        // 1. ADVANCED FILTERING LOGIC (Name, Category, Location)
+        const filteredData = database.filter(item => {
+            return item.name.toLowerCase().includes(term) || 
+                   item.category.toLowerCase().includes(term) ||
+                   item.location.toLowerCase().includes(term); 
         });
+
+        // 2. RENDER MAIN CONTENT (Continuously filter the grid)
+        renderContent(filteredData); 
+
+        // 3. SUGGESTION LOGIC
+        suggestionsList.innerHTML = ''; // Clear previous suggestions
+
+        if (term.length > 1) { // Start suggesting after 1 character
+            // Filter only by name for a cleaner suggestion list (optional)
+            const nameSuggestions = filteredData
+                .filter(item => item.name.toLowerCase().includes(term))
+                .slice(0, 5); // Limit to top 5 suggestions
+
+            if (nameSuggestions.length > 0) {
+                nameSuggestions.forEach(item => {
+                    const li = document.createElement('li');
+                    // Highlight the matching part in the name for visual feedback
+                    const highlightedName = item.name.replace(new RegExp(term, 'gi'), (match) => `<strong>${match}</strong>`);
+                    li.innerHTML = `${highlightedName} <span style="color: #ccc;">(${item.category})</span>`;
+                    li.setAttribute('data-suggestion', item.name); // Store original name
+                    suggestionsList.appendChild(li);
+                });
+                suggestionsList.style.display = 'block'; // Show the list
+            } else {
+                suggestionsList.style.display = 'none'; // Hide if no name suggestions
+            }
+        } else {
+            suggestionsList.style.display = 'none'; // Hide if input is too short
+        }
+    });
+
+    // 5. Handle Suggestion Click (autofill and hide)
+    suggestionsList.addEventListener('click', function(e) {
+        // Use closest to ensure we handle clicks on the <li> or its children
+        const li = e.target.closest('li');
+        if (li) {
+            const selectedName = li.getAttribute('data-suggestion');
+            
+            searchInput.value = selectedName; // Put the selected name in the search bar
+            
+            // Re-run the filter for an exact name match to update the grid
+            const finalFilter = database.filter(item => item.name === selectedName);
+            renderContent(finalFilter);
+            
+            suggestionsList.style.display = 'none';
+        }
+    });
+
+    // 6. Hide suggestions when clicking outside the search container
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-container')) {
+            suggestionsList.style.display = 'none';
+        }
+    });
+    
+    // 7. FUNGSI TRANSISI MASUK (Keep your existing function)
+    function enterSite() {
+        // ... (your existing enterSite function)
+    }
 
         // 5. FUNGSI TRANSISI MASUK
         function enterSite() {
